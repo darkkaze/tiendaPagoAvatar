@@ -211,7 +211,7 @@ export interface WaifuConfig {
 }
 
 export const DEFAULT_CONFIG: WaifuConfig = {
-  websocketUrl: import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8765',
+  websocketUrl: 'wss://tiendapago.nomada.dev/ws',
   animationServiceUrl: 'http://localhost:5003',
   heartbeatInterval: 45000, // 45 seconds
   voiceTimeout: 3000, // 3 seconds of silence
