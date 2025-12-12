@@ -62,7 +62,7 @@ export function useResponseCoordinator() {
     }
 
     // Handle complete response parts (with message_id)
-    if (isAudioVisemaResponse(response) || ('audio_url' in response && typeof response === 'object' && response !== null)) {
+    if (isAudioVisemaResponse(response) || ('audio_url' in response && typeof response === 'object' && response !== null) || ('audio_base64' in response && typeof response === 'object' && response !== null)) {
       handleAudioVisemaResponse(response as AudioVisemaResponse)
     } else if (isExpressionsResponse(response) || ('expresiones' in response && typeof response === 'object' && response !== null)) {
       handleExpressionsResponse(response as ExpressionsResponse)

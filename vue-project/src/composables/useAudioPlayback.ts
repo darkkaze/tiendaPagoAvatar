@@ -142,6 +142,74 @@ export function useAudioPlayback(options: PlaybackOptions = {}) {
   }
 
   /**
+   * Play audio from base64 encoded string
+   */
+  const playAudioFromBase64 = async (base64Data: string, format: string = 'wav', visemas: Visema[] = []): Promise<void> => {
+    try {
+      state.value.isLoading = true
+      state.value.error = null
+
+      // Stop current audio if playing
+      stop()
+
+      // Convert base64 to blob URL
+      const byteCharacters = atob(base64Data)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: `audio/${format}` })
+      const blobUrl = URL.createObjectURL(blob)
+
+      // Create and setup audio
+      const audio = new Audio(blobUrl)
+      audio.volume = state.value.volume
+
+      // Wait for audio to load
+      await new Promise<void>((resolve, reject) => {
+        audio.onloadeddata = () => resolve()
+        audio.onerror = () => reject(new Error('Failed to load audio from base64'))
+        audio.load()
+      })
+
+      currentAudio = audio
+
+      // Setup audio event handlers (with blob URL cleanup)
+      setupAudioHandlers(audio)
+      audio.onended = () => {
+        state.value.isPlaying = false
+        state.value.currentTime = 0
+        stopTimeUpdates()
+        URL.revokeObjectURL(blobUrl)  // Clean up blob URL
+        playbackCallbacks.forEach(callback => callback(false))
+      }
+
+      // Setup visemas synchronization
+      if (visemas.length > 0) {
+        setupVisemaSync(visemas)
+      }
+
+      // Play audio
+      await audio.play()
+
+      state.value.isLoading = false
+      state.value.isPlaying = true
+      state.value.duration = audio.duration
+
+      // Start time updates
+      startTimeUpdates()
+
+      // Notify callbacks
+      playbackCallbacks.forEach(callback => callback(true))
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Audio playback from base64 failed'
+      handleError(errorMessage)
+    }
+  }
+
+  /**
    * Stop audio playback
    */
   const stop = (): void => {
@@ -388,6 +456,7 @@ export function useAudioPlayback(options: PlaybackOptions = {}) {
     // Methods
     loadAudio,
     playAudio,
+    playAudioFromBase64,
     stop,
     pause,
     resume,

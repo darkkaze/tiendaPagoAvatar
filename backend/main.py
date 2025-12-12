@@ -74,12 +74,17 @@ class WebSocketHandler:
     async def _parallel1(self, message: str, agent_response: str, message_id: str):
         """Primera rama de procesamiento paralelo: audio y visemas"""
         await self.db_manager.save_conversation(message, agent_response)
-        audio_url = await self.tts_model.speech_to_text(agent_response)
-        #await self.websocket.send(json.dumps({"audio_url": audio_url, "message_id": message_id}))
+        tts_result = await self.tts_model.speech_to_text(agent_response)
+        audio_url = tts_result["audio_url"]
+        audio_base64 = tts_result["audio_base64"]
+        
         visemas = await self.visemas_model.generate_visemes(agent_response, audio_url) 
-        await self.websocket.send(json.dumps(
-            {"audio_url": audio_url, "message_id": message_id, "visemas": visemas.get("visemas", [])})
-            )
+        await self.websocket.send(json.dumps({
+            "audio_base64": audio_base64,
+            "audio_format": "wav",
+            "message_id": message_id, 
+            "visemas": visemas.get("visemas", [])
+        }))
     
 
 

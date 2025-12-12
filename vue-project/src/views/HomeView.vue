@@ -442,17 +442,25 @@ const setupEventHandlers = (): void => {
 
   // Fast output handler
   responseCoordinator.onFastOutput((response) => {
+    const respAny = response as any
+    const hasAudioBase64 = 'audio_base64' in respAny
+    const hasAudioUrl = !!response.audio_url
+    
     // PAUSE voice capture when avatar starts speaking to prevent feedback
-    if (response.audio_url && isListening.value) {
+    if ((hasAudioBase64 || hasAudioUrl) && isListening.value) {
       voiceCapture.stop()
     }
 
     // Transition to talking when response arrives with audio
-    if (response.audio_url) {
+    if (hasAudioBase64 || hasAudioUrl) {
       avatarRenderer.transitionToTalking()
     }
 
-    if (response.audio_url && response.visemas) {
+    // Play audio with visemas - prefer base64 over URL
+    if (hasAudioBase64 && response.visemas) {
+      audioPlayback.playAudioFromBase64(respAny.audio_base64, respAny.audio_format || 'wav', response.visemas)
+      avatarRenderer.playVisemas(response.visemas)
+    } else if (response.audio_url && response.visemas) {
       audioPlayback.playAudio(response.audio_url, response.visemas)
       avatarRenderer.playVisemas(response.visemas)
     } else if (response.visemas) {
@@ -469,18 +477,25 @@ const setupEventHandlers = (): void => {
 
   // Complete response handler
   responseCoordinator.onCompleteResponse((response) => {
+    const hasAudioBase64 = response.audio && 'audio_base64' in response.audio
+    const hasAudioUrl = response.audio?.audio_url
+    
     // PAUSE voice capture when avatar starts speaking to prevent feedback
-    if (response.audio?.audio_url && isListening.value) {
+    if ((hasAudioBase64 || hasAudioUrl) && isListening.value) {
       voiceCapture.stop()
     }
 
     // Transition to talking when response arrives with audio
-    if (response.audio?.audio_url) {
+    if (hasAudioBase64 || hasAudioUrl) {
       avatarRenderer.transitionToTalking()
     }
 
-    // Play audio with visemas
-    if (response.audio?.audio_url && response.audio?.visemas) {
+    // Play audio with visemas - prefer base64 over URL
+    if (hasAudioBase64 && response.audio?.visemas) {
+      const audioData = response.audio as any
+      audioPlayback.playAudioFromBase64(audioData.audio_base64, audioData.audio_format || 'wav', response.audio.visemas)
+      avatarRenderer.playVisemas(response.audio.visemas)
+    } else if (response.audio?.audio_url && response.audio?.visemas) {
       audioPlayback.playAudio(response.audio.audio_url, response.audio.visemas)
       avatarRenderer.playVisemas(response.audio.visemas)
     }
