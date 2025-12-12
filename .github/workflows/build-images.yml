@@ -70,7 +70,8 @@ jobs:
             echo "backend=${{ inputs.build_backend }}" >> $GITHUB_OUTPUT
             echo "tts=${{ inputs.build_tts }}" >> $GITHUB_OUTPUT
             echo "visemas=${{ inputs.build_visemas }}" >> $GITHUB_OUTPUT
-            echo "frontend=${{ inputs.build_frontend }}" >> $GITHUB_OUTPUT
+            # HARDCODED: Always build frontend on manual trigger
+            echo "frontend=true" >> $GITHUB_OUTPUT
           fi
 
   build:
