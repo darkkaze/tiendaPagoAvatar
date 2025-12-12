@@ -363,7 +363,7 @@ backend/ia_models/cache/
 backend/conversation.db.backup
 
 # Vue Project (additional to above)
-vue-project/public/
+# vue-project/public/ - REMOVED: VRM/VRMA files need to be tracked
 vue-project/.nuxt/
 vue-project/.output/
 vue-project/.vercel/
