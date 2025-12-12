@@ -2,6 +2,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Build arguments
+ARG VITE_WEBSOCKET_URL=wss://tiendapago.nomada.dev/ws
+
 # Copy package files
 COPY package*.json ./
 
@@ -11,8 +14,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the application with environment variable
+RUN VITE_WEBSOCKET_URL=${VITE_WEBSOCKET_URL} npm run build
 
 # Production stage
 FROM nginx:alpine
