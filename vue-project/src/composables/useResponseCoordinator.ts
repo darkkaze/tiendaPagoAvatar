@@ -160,8 +160,8 @@ export function useResponseCoordinator() {
     const status = responseStatuses.get(messageId)!
     status[field] = value
 
-    // Check if complete (animations no longer required - handled in frontend)
-    status.isComplete = status.hasAudio && status.hasExpressions
+    // Check if complete (only audio required - expressions are optional now)
+    status.isComplete = status.hasAudio
   }
 
   /**

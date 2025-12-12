@@ -213,7 +213,7 @@ const showServerError = ref(false)
 
 // Configuration
 const config = {
-  websocketUrl: 'wss://tiendapago.nomada.dev/ws',
+  websocketUrl: 'wss://6d911a1b7f83.ngrok-free.app',  // ngrok tunnel to local backend
   animationServiceUrl: 'http://localhost:5003',
   modelUrl: '/avatar.vrm',  // Served from public/ directory
   audioBaseUrl: 'http://localhost:5002',
