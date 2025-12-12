@@ -1,149 +1,150 @@
-# Waifu Librera - Interactive 3D Avatar with Conversational AI
+# Tienda Pago - Asistente Virtual con Avatar 3D
 
-Personal study project exploring the integration of a LangGraph/LangChain conversational agent with a 3D VRoid avatar.
+Asistente conversacional para comerciantes que combina un agente RAG (Retrieval-Augmented Generation) con un avatar 3D animado. El usuario habla, el avatar responde con voz sintetizada y animaciones faciales sincronizadas.
 
-## Project Overview
+---
 
-This project connects a ReAct-based AI agent (powered by Claude Haiku 4.5) with an interactive 3D VRM avatar that can:
-- Listen to voice input
-- Process natural language queries about a book library
-- Respond with synchronized speech, lip-sync, facial expressions, and body animations
+## Decisiones Técnicas: ¿Por qué no usar Vector Search?
 
-**Why VRoid?** VRoid/VRM was chosen for its ease of use - you can quickly create or find existing 3D avatars, and they come with built-in viseme (lip-sync) and facial expression support, making avatar animation straightforward.
+Al analizar el desafío, me enfrenté a una disyuntiva interesante respecto a la sugerencia de implementar un "Naive RAG" (chunking + búsqueda vectorial). No estoy seguro si esta instrucción era una "trampa" intencional del diseño de la prueba o simplemente una simplificación, pero aplicar esa técnica a este corpus específico hubiera resultado en una solución deficiente.
 
-## Demo
+Es fundamental distinguir que **RAG (Retrieval-Augmented Generation) es un patrón de arquitectura independiente de su implementación**. Vector Search es solo una herramienta de recuperación, y para este caso, no era la adecuada.
 
-🎥 **[Watch Video Demo](https://youtube.com/shorts/4K3GIW9ZUZc?feature=share)**
+### 1. La "Trampa" de la Polisemia y los Contextos Divergentes
 
-[![AI Librarian Avatar Demo](https://img.youtube.com/vi/4K3GIW9ZUZc/maxresdefault.jpg)](https://youtube.com/shorts/4K3GIW9ZUZc?feature=share)
+Los documentos provistos son cortos pero semánticamente densos y presentan un riesgo alto de confusión para una búsqueda por similitud simple:
 
-## Key Features
+**El solapamiento de vocabulario:** La palabra "proveedor" es el mejor ejemplo. Aparece en *Operaciones* (contexto transaccional: cómo pagar) y en *Bienestar* (contexto emocional: manejo de estrés).
 
-### Vector Search for Book Recommendations
-- Uses **SQLite with vector extensions** (`sqlite-vec`) for book inventory context
-- Implements vector-based book recommendations using semantic similarity
-- Model: `paraphrase-multilingual-MiniLM-L12-v2` (384 dimensions)
+**El Fallo del Naive RAG:** Un buscador vectorial simple priorizaría la frecuencia de la palabra. Si un usuario dice *"Me estresa mi proveedor"*, el sistema probablemente recuperaría instrucciones de pago (Operaciones) en lugar de consejos de salud mental (Bienestar), fallando en entender la intención del usuario.
 
-**Note:** A sales-based recommendation algorithm would be more effective in production, but this project uses vector similarity as a proof of concept due to lack of sales data.
+### 2. La Solución: RAG con Enrutamiento Semántico
 
-### Conversational AI Agent
-- Built with **LangGraph** and **LangChain**
-- Powered by **Claude Haiku 4.5**
-- Three specialized tools: search by title, search by criteria, and similarity recommendations
-- Maintains conversation history (last 3 minutes)
+En lugar de fragmentar la información y perder el hilo narrativo, opté por una arquitectura de **Semantic Routing**.
 
-### Real-time Multimedia Coordination
-- Parallel processing of TTS, visemes, expressions, and animations
-- WebSocket-based communication
-- Voice feedback prevention (pauses voice capture during avatar speech)
+**Cómo funciona:** Un nodo clasificador (Router) analiza la intención de la pregunta y decide qué documento es necesario.
 
-## Architecture
+**La Ventaja:** Esto permite inyectar el documento completo en el contexto del LLM. Al tener la totalidad de la información (y no solo fragmentos o "chunks" aislados), el modelo puede razonar mejor y evitar alucinaciones causadas por falta de contexto.
 
-The project follows a **microservices architecture**:
+> **Nota sobre Vector Search:** Aunque tengo experiencia implementando bases de datos vectoriales (como ChromaDB o FAISS) para corpus de gran escala donde la búsqueda semántica es obligatoria, aplicarlas aquí hubiera sido un error de diseño ("matar moscas a cañonazos"). La ingeniería eficaz consiste en elegir la herramienta correcta para el problema, no forzar la herramienta de moda donde no aporta valor.
+
+---
+
+## Flujo del Agente (LangGraph)
+
+> 📁 Implementación: [`backend/agents/agent.py`](backend/agents/agent.py)
 
 ```
-┌─────────────────┐
-│   Vue Frontend  │  (3D Avatar + Voice Interface)
-│   Port: 5173    │
-└────────┬────────┘
-         │ WebSocket
-┌────────▼────────┐
-│  Backend WS     │  (Agent Coordinator)
-│  Port: 8765     │
-└─┬───┬───┬───┬───┘
-  │   │   │   │
-  │   │   │   └──► Animation Service (Port 5003)
-  │   │   └──────► Visemas Service (Port 5001)
-  │   └──────────► TTS Service (Port 5002)
-  └──────────────► SQLite Vector DB
+                                    ┌─────────────────┐
+                                    │      START      │
+                                    └────────┬────────┘
+                                             │
+                                             ▼
+                              ┌──────────────────────────────┐
+                              │         ROUTER NODE          │
+                              │  ─────────────────────────   │
+                              │  Analiza pregunta vs         │
+                              │  resúmenes de documentos     │
+                              │  (finanzas, operaciones,     │
+                              │   bienestar)                 │
+                              └──────────────┬───────────────┘
+                                             │
+                         ┌───────────────────┴───────────────────┐
+                         │                                       │
+                   doc_id_match?                            doc_id = none
+                         │                                       │
+                         ▼                                       ▼
+          ┌──────────────────────────┐            ┌──────────────────────────┐
+          │     RETRIEVER NODE       │            │      FALLBACK NODE       │
+          │  ────────────────────    │            │  ────────────────────    │
+          │  SELECT full_content     │            │  "No puedo ayudarte      │
+          │  FROM knowledge_base     │            │   con eso, pero sí con   │
+          │  WHERE doc_id = ?        │            │   temas de tu negocio"   │
+          └────────────┬─────────────┘            └────────────┬─────────────┘
+                       │                                       │
+                       ▼                                       │
+          ┌──────────────────────────┐                         │
+          │     GENERATOR NODE       │                         │
+          │  ────────────────────    │                         │
+          │  LLM genera respuesta    │                         │
+          │  usando documento        │                         │
+          │  completo como contexto  │                         │
+          └────────────┬─────────────┘                         │
+                       │                                       │
+                       └───────────────────┬───────────────────┘
+                                           │
+                                           ▼
+                                    ┌─────────────────┐
+                                    │       END       │
+                                    └─────────────────┘
 ```
 
-## Installation
+---
 
-Each service has its own README with detailed installation instructions:
+## Arquitectura
 
-- **Frontend**: [`vue-project/README.md`](vue-project/README.md) - Node.js 20.19.0+
-- **Backend**: [`backend/README.md`](backend/README.md) - Python 3.11+
-- **TTS Service**: [`speech_to_text_service/README.md`](speech_to_text_service/README.md) - Python 3.11+
-- **Visemas Service**: [`visemas_service/README.md`](visemas_service/README.md) - Python 3.11+
-- **Animation Service**: [`animation_service/README.md`](animation_service/README.md) - Python 3.11+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         FRONTEND (Vue 3)                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │ Voice Input │  │  WebSocket  │  │   Avatar 3D (Three.js)  │  │
+│  │   (STT)     │──│   Client    │──│   VRM + Visemas + TTS   │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    BACKEND (Python + LangGraph)                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    WebSocket Handler                     │   │
+│  │  ┌────────────────┐  ┌──────────────┐  ┌──────────────┐  │   │
+│  │  │ TiendapagoAgent│  │  TTS Client  │  │Visemas Client│  │   │
+│  │  │  (LangGraph)   │  │  (Gemini)    │  │  (Librosa)   │  │   │
+│  │  └────────────────┘  └──────────────┘  └──────────────┘  │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                   SQLite (tiendapago.db)                  │  │
+│  │  ┌──────────────────────────────────────────────────────┐ │  │
+│  │  │ knowledge_base: doc_id | topic_summary | full_conten │ │  │
+│  │  └──────────────────────────────────────────────────────┘ │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-## Environment Variables
+---
 
-The project requires the following API keys:
+## Instalación
 
-| Variable | Required By | Purpose |
-|----------|------------|---------|
-| `ANTHROPIC_API_KEY` | Backend | Claude Haiku 4.5 for conversational agent |
-| `OPENAI_API_KEY` | Backend | GPT-4o-mini for animation selection |
-| `GEMINI_API_KEY` | TTS Service | Gemini 2.5 Pro TTS for speech synthesis |
-
-Create these environment variables before starting the services:
-
+### Backend
 ```bash
-export ANTHROPIC_API_KEY="your-anthropic-key"
-export OPENAI_API_KEY="your-openai-key"
-export GEMINI_API_KEY="your-gemini-key"
-```
-
-Or create a `.env` file in each service directory (see `.env.example` if available).
-
-## Quick Start
-
-### 1. Set Environment Variables
-
-See the **Environment Variables** section above.
-
-### 2. Start Services (in order)
-
-```bash
-# Terminal 1 - TTS Service
-cd speech_to_text_service
-source venv/bin/activate
-python app.py
-
-# Terminal 2 - Visemas Service
-cd visemas_service
-source venv/bin/activate
-python app.py
-
-# Terminal 3 - Animation Service
-cd animation_service
-source venv/bin/activate
-python app.py
-
-# Terminal 4 - Backend
 cd backend
-source venv/bin/activate
-python main.py
-
-# Terminal 5 - Frontend
-cd vue-project
-npm run dev
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python load_db.py  # Carga documentos con resúmenes GPT-5-nano
+python main.py     # WebSocket en :8765
 ```
 
-Open `http://localhost:5173` in your browser and interact with the avatar!
+### TTS Service
+```bash
+cd speech_to_text_service
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python app.py      # HTTP en :5002
+```
 
-## Tech Stack
+### Frontend
+```bash
+cd vue-project
+npm install
+npm run dev        # Vite en :5173
+```
 
-- **Frontend**: Vue 3, TypeScript, Three.js, @pixiv/three-vrm, Vuetify
-- **Backend**: Python, WebSockets, LangGraph, LangChain
-- **AI Models**: Claude Haiku 4.5, GPT-4o-mini, Gemini 2.5 Pro TTS
-- **Database**: SQLite with vector extensions (sqlite-vec)
-- **TTS Engines**: Gemini TTS, Piper TTS, XTTS-v2
+---
 
-## Apology for Architecture
+## Variables de Entorno
 
-Yes, I went with a microservices architecture thinking it would be easier to debug (and it was!), but I got lazy and didn't implement a one-click execution script. You'll need to manually start all 5 services in separate terminals. My apologies for the inconvenience! 😅
-
-Feel free to create a `docker-compose.yml` or startup script if you want to improve this.
-
-## License
-
-This project is licensed under the **Beerware License** (Revision 42).
-
-You can do whatever you want with this code. If we meet some day, and you think this stuff is worth it, you can buy me a beer (or a coffee) in return.
-
-☕ Support via Ko-fi: [ko-fi.com/darkkaze](https://ko-fi.com/darkkaze)
-
-See [LICENSE](LICENSE) for the full license text.
+```bash
+# backend/settings.py
+OPENAI_API_KEY=sk-...
+GOOGLE_API_KEY=...  # Para Gemini TTS
+```

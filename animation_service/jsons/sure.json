@@ -1,8 +1,0 @@
-{
-  "sequence": "sure",
-  "description": "Gesto de confirmación o seguridad, mostrando confianza en la respuesta",
-  "vrma_file": "animations/sure.vrma",
-  "breathing": true,
-  "delay": 0.0,
-  "temporary": false
-}

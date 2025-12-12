@@ -10,8 +10,7 @@ from db.ducktyping import DatabaseManagerProtocol
 from db.models import DatabaseManager, init_db
 from vox.xtts_client import XTTSClient
 from visemas.librosa_client import LibrosaClient
-from animations.expressions_client import ExpressionsClient
-from animations.animations_client import AnimationsClient
+
 from langchain_openai import ChatOpenAI
 
 class WebSocketHandler:
@@ -29,8 +28,7 @@ class WebSocketHandler:
         self.websocket = websocket
         self.tts_model = XTTSClient()
         self.visemas_model = LibrosaClient()
-        self.expressions_model = ExpressionsClient()
-        self.animations_model = AnimationsClient(openai_api_key=settings.OPENAI_API_KEY)
+
     
     async def handler(self):
         """Handler principal que rutea mensajes según su tipo"""
@@ -70,13 +68,8 @@ class WebSocketHandler:
         agent_response = await self.agent.process_message(message)
         print(f"Respuesta del agente: {agent_response}")
 
-        # Procesamiento paralelo: TTS+Visemas, Expresiones
-        # Animaciones desactivadas - ahora se manejan en el frontend
-        await asyncio.gather(
-            self._parallel1(message, agent_response, message_id),
-            self._parallel2(agent_response, message_id),
-            # self._parallel3(agent_response, message_id)  # Animaciones desactivadas
-        )
+        # Procesamiento: TTS+Visemas (expresiones y animaciones ahora son frontend)
+        await self._parallel1(message, agent_response, message_id)
     
     async def _parallel1(self, message: str, agent_response: str, message_id: str):
         """Primera rama de procesamiento paralelo: audio y visemas"""
@@ -88,17 +81,7 @@ class WebSocketHandler:
             {"audio_url": audio_url, "message_id": message_id, "visemas": visemas.get("visemas", [])})
             )
     
-    async def _parallel2(self, agent_response: str, message_id: str):
-        """Segunda rama de procesamiento paralelo: expresiones"""
-        expressions = await self.expressions_model.generate_expressions(agent_response) 
-        expressions["message_id"] = message_id
-        await self.websocket.send(json.dumps(expressions))
-    
-    async def _parallel3(self, agent_response: str, message_id: str):
-        """Tercera rama de procesamiento paralelo: animaciones"""
-        animations = await self.animations_model.generate_animations(agent_response)
-        animations["message_id"] = message_id
-        await self.websocket.send(json.dumps(animations))
+
 
 
 

@@ -1,8 +1,0 @@
-{
-  "sequence": "shy",
-  "description": "Expresión de timidez o bashfulness, mostrando gestos reservados",
-  "vrma_file": "animations/shy.vrma",
-  "breathing": true,
-  "delay": 0.0,
-  "temporary": false
-}
