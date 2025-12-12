@@ -2,6 +2,7 @@
 Database models for knowledge base.
 In-memory chat history with FIFO queue (no persistence).
 """
+import os
 from sqlalchemy import create_engine, Column, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker

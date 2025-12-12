@@ -148,3 +148,18 @@ npm run dev        # Vite en :5173
 OPENAI_API_KEY=sk-...
 GOOGLE_API_KEY=...  # Para Gemini TTS
 ```
+
+---
+
+## Deployment en Kubernetes
+
+Para deployment en producción con k3s, consulta la [guía completa de Kubernetes](kubernetes/README.md).
+
+**Quick Start:**
+
+```bash
+cd kubernetes
+./build-and-deploy.sh
+```
+
+Esto deployará el proyecto en `https://tiendapago.nomada.dev` con SSL automático via Let's Encrypt.

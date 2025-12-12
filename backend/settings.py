@@ -1,10 +1,16 @@
 import os
 
-WEBSOCKET_HOST = "localhost"
-WEBSOCKET_PORT = 8765
+WEBSOCKET_HOST = os.getenv("WEBSOCKET_HOST", "0.0.0.0")
+WEBSOCKET_PORT = int(os.getenv("WEBSOCKET_PORT", "8765"))
+
+TTS_SERVICE_URL = os.getenv("TTS_SERVICE_URL", "http://localhost:5002")
+VISEMAS_SERVICE_URL = os.getenv("VISEMAS_SERVICE_URL", "http://localhost:5001")
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Database is baked into the image (read-only demo mode)
+DATABASE_PATH = "db/tiendapago.db"
 
 PHONEME_TO_VISEME = {
     # Vocales principales

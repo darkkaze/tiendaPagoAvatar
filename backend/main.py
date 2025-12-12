@@ -26,8 +26,8 @@ class WebSocketHandler:
         self.agent = agent
         self.db_manager = db_manager
         self.websocket = websocket
-        self.tts_model = XTTSClient()
-        self.visemas_model = LibrosaClient()
+        self.tts_model = XTTSClient(service_url=settings.TTS_SERVICE_URL)
+        self.visemas_model = LibrosaClient(service_url=settings.VISEMAS_SERVICE_URL)
 
     
     async def handler(self):
