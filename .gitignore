@@ -328,6 +328,9 @@ coverage.xml
 .deploy/
 deploy.log
 
+# Kubernetes manifests (contain secrets)
+kubernetes/
+
 # =================== AI/ML MODELS ===================
 # Large model files (if any)
 *.model
