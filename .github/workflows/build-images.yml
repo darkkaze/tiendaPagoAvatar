@@ -11,24 +11,42 @@ on:
       - 'vue-project/**'
       - '.github/workflows/build-images.yml'
   workflow_dispatch:
+    inputs:
+      build_backend:
+        description: 'Build backend'
+        type: boolean
+        default: false
+      build_tts:
+        description: 'Build TTS service'
+        type: boolean
+        default: false
+      build_visemas:
+        description: 'Build Visemas service (slow!)'
+        type: boolean
+        default: false
+      build_frontend:
+        description: 'Build Frontend'
+        type: boolean
+        default: true
 
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/tiendapago
 
 jobs:
-  # Detect changed services
+  # Detect changed services (combines path filter + manual inputs)
   changes:
     runs-on: ubuntu-latest
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      tts: ${{ steps.filter.outputs.tts }}
-      visemas: ${{ steps.filter.outputs.visemas }}
-      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.result.outputs.backend }}
+      tts: ${{ steps.result.outputs.tts }}
+      visemas: ${{ steps.result.outputs.visemas }}
+      frontend: ${{ steps.result.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name == 'push'
         with:
           filters: |
             backend:
@@ -39,6 +57,21 @@ jobs:
               - 'visemas_service/**'
             frontend:
               - 'vue-project/**'
+      - name: Combine results
+        id: result
+        run: |
+          # For push events, use path filter. For workflow_dispatch, use inputs.
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "backend=${{ steps.filter.outputs.backend }}" >> $GITHUB_OUTPUT
+            echo "tts=${{ steps.filter.outputs.tts }}" >> $GITHUB_OUTPUT
+            echo "visemas=${{ steps.filter.outputs.visemas }}" >> $GITHUB_OUTPUT
+            echo "frontend=${{ steps.filter.outputs.frontend }}" >> $GITHUB_OUTPUT
+          else
+            echo "backend=${{ inputs.build_backend }}" >> $GITHUB_OUTPUT
+            echo "tts=${{ inputs.build_tts }}" >> $GITHUB_OUTPUT
+            echo "visemas=${{ inputs.build_visemas }}" >> $GITHUB_OUTPUT
+            echo "frontend=${{ inputs.build_frontend }}" >> $GITHUB_OUTPUT
+          fi
 
   build:
     needs: changes
