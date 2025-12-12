@@ -213,7 +213,7 @@ const showServerError = ref(false)
 
 // Configuration
 const config = {
-  websocketUrl: 'ws://localhost:8765',
+  websocketUrl: import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8765',
   animationServiceUrl: 'http://localhost:5003',
   modelUrl: '/avatar.vrm',  // Served from public/ directory
   audioBaseUrl: 'http://localhost:5002',
