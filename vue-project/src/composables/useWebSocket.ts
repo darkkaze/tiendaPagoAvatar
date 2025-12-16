@@ -55,6 +55,13 @@ export function useWebSocket(config: Partial<WaifuConfig> = {}) {
   }
 
   /**
+   * Set WebSocket URL (call before connect)
+   */
+  const setUrl = (url: string): void => {
+    finalConfig.websocketUrl = url
+  }
+
+  /**
    * Disconnect from WebSocket server
    */
   const disconnect = (): void => {
@@ -247,7 +254,7 @@ export function useWebSocket(config: Partial<WaifuConfig> = {}) {
   }
 
   /**
-   * Cleanup resources
+   * Cleanup resources (keeps callbacks for reconnect)
    */
   const cleanup = (): void => {
     stopHeartbeat()
@@ -261,14 +268,21 @@ export function useWebSocket(config: Partial<WaifuConfig> = {}) {
       ws.close()
       ws = null
     }
+    // Note: Don't clear callbacks - they should persist across reconnects
+  }
 
+  /**
+   * Full cleanup (for unmount)
+   */
+  const fullCleanup = (): void => {
+    cleanup()
     responseCallbacks.clear()
     connectionCallbacks.clear()
   }
 
   // Cleanup on component unmount
   onUnmounted(() => {
-    cleanup()
+    fullCleanup()
   })
 
   return {
@@ -280,6 +294,7 @@ export function useWebSocket(config: Partial<WaifuConfig> = {}) {
     // Methods
     connect,
     disconnect,
+    setUrl,
     sendMessage,
     sendHeartbeat,
 

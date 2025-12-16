@@ -1095,9 +1095,10 @@ export function useAvatarRenderer(container: Ref<HTMLElement | undefined>, confi
 
     currentPoseState.value = 'thinking'
 
-    // Reset smiling expression
+    // Smoothly transition expression to neutral (avoid abrupt face change)
     if (vrm?.expressionManager) {
-      vrm.expressionManager.setValue('happy', 0.0)
+      // Get current happy value and smoothly transition to 0
+      smoothTransition('happy', 0.0, 400)  // 400ms smooth transition
     }
 
     // Manual bone manipulation will be applied in updateThinkingPose

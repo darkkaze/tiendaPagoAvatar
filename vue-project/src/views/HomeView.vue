@@ -192,7 +192,63 @@
           </v-btn>
         </v-card>
       </div>
+
+      <!-- WebSocket URL Config -->
+      <div class="ws-config mt-4" v-if="showDebugInfo">
+        <v-card class="pa-4" elevation="2">
+          <v-card-title class="text-h6 mb-2">
+            <v-icon class="me-2">mdi-connection</v-icon>
+            WebSocket URL
+          </v-card-title>
+
+          <v-text-field
+            v-model="wsUrlInput"
+            label="Backend URL"
+            placeholder="wss://example.ngrok.io"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="mb-2"
+          />
+
+          <v-btn
+            size="small"
+            color="primary"
+            variant="elevated"
+            @click="reconnectWithNewUrl"
+            :loading="isReconnecting"
+            block
+          >
+            <v-icon class="me-1">mdi-refresh</v-icon>
+            Reconectar
+          </v-btn>
+        </v-card>
+      </div>
     </div>
+
+    <!-- Quick Message Dialog (Ctrl+Shift+M) -->
+    <v-dialog v-model="showQuickMessage" max-width="500" @keydown.esc="showQuickMessage = false">
+      <v-card class="pa-4">
+        <v-card-title class="text-h6">
+          <v-icon class="me-2">mdi-message-text</v-icon>
+          Mensaje rápido
+        </v-card-title>
+        <v-text-field
+          v-model="quickMessageText"
+          ref="quickMessageInput"
+          label="Escribe tu mensaje"
+          variant="outlined"
+          autofocus
+          @keydown.enter="sendQuickMessage"
+          class="mt-2"
+        />
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showQuickMessage = false">Cancelar</v-btn>
+          <v-btn color="primary" variant="elevated" @click="sendQuickMessage">Enviar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -249,6 +305,11 @@ const responseCoordinator = useResponseCoordinator()
 const isRetrying = ref(false)
 const showDebugInfo = ref(true)
 const audioVolume = ref(80)
+const wsUrlInput = ref(config.websocketUrl)
+const isReconnecting = ref(false)
+const showQuickMessage = ref(false)
+const quickMessageText = ref('')
+const quickMessageInput = ref<HTMLInputElement | null>(null)
 
 // Computed properties
 const showLoadingOverlay = computed(() =>
@@ -414,6 +475,7 @@ const initializeApp = async (): Promise<void> => {
 const setupEventHandlers = (): void => {
   // WebSocket response handler
   websocket.onResponse((response) => {
+    console.log('📩 WS Response received:', response)
     responseCoordinator.processResponse(response)
   })
 
@@ -597,6 +659,60 @@ const clearDebugStats = (): void => {
 }
 
 /**
+ * Reconnect WebSocket with new URL
+ */
+const reconnectWithNewUrl = async (): Promise<void> => {
+  if (!wsUrlInput.value.trim()) return
+  
+  isReconnecting.value = true
+  
+  try {
+    // Disconnect current connection
+    websocket.disconnect()
+    
+    // Set new URL and reconnect
+    websocket.setUrl(wsUrlInput.value.trim())
+    await websocket.connect()
+    
+    console.log('✅ Reconnected to:', wsUrlInput.value.trim())
+  } catch (error) {
+    console.error('Failed to reconnect:', error)
+  } finally {
+    isReconnecting.value = false
+  }
+}
+
+/**
+ * Send quick message from dialog
+ */
+const sendQuickMessage = (): void => {
+  if (!quickMessageText.value.trim()) return
+  
+  const messageId = websocket.generateMessageId()
+  websocket.sendMessage(quickMessageText.value.trim(), messageId)
+  
+  // Transition to thinking immediately
+  avatarRenderer.transitionToThinking()
+  
+  // Close dialog and reset
+  showQuickMessage.value = false
+  quickMessageText.value = ''
+}
+
+/**
+ * Setup keyboard shortcuts
+ */
+const setupKeyboardShortcuts = (): void => {
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    // Ctrl+Shift+M to open quick message
+    if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+      e.preventDefault()
+      showQuickMessage.value = true
+    }
+  })
+}
+
+/**
  * Format time for display
  */
 const formatTime = (seconds: number): string => {
@@ -609,6 +725,7 @@ const formatTime = (seconds: number): string => {
 onMounted(async () => {
   await nextTick()
   setupEventHandlers()
+  setupKeyboardShortcuts()
   await initializeApp()
 })
 

@@ -63,6 +63,7 @@ export function useResponseCoordinator() {
 
     // Handle complete response parts (with message_id)
     if (isAudioVisemaResponse(response) || ('audio_url' in response && typeof response === 'object' && response !== null) || ('audio_base64' in response && typeof response === 'object' && response !== null)) {
+      console.log('🔊 Handling audio response:', { message_id: (response as any).message_id, hasBase64: 'audio_base64' in response })
       handleAudioVisemaResponse(response as AudioVisemaResponse)
     } else if (isExpressionsResponse(response) || ('expresiones' in response && typeof response === 'object' && response !== null)) {
       handleExpressionsResponse(response as ExpressionsResponse)
@@ -175,12 +176,16 @@ export function useResponseCoordinator() {
       return
     }
 
+    console.log('✅ Check completion:', { messageId, isComplete: status.isComplete, hasAudio: status.hasAudio, callbackCount: completeResponseCallbacks.size })
+
     if (status.isComplete) {
       // Calculate completion time
       const completionTime = Date.now() - status.timestamp
       updateAverageCompletionTime(completionTime)
 
       stats.totalCompleteResponses++
+
+      console.log('🎉 Triggering complete response callbacks, audio:', completeResponse.audio)
 
       // Notify callbacks
       completeResponseCallbacks.forEach(callback => callback(completeResponse))
